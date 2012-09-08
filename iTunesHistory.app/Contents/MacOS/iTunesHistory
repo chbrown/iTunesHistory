@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+import os
+import subprocess
+import re
+from ScriptingBridge import SBApplication
+import time
+
+# first, install if needed:
+app_path = re.search('^.+iTunesHistory.app', os.path.abspath(__file__)).group(0)
+login_items = subprocess.check_output(['osascript', '-e', 'tell application "System Events" to get the name of every login item'])
+if 'iTunesHistory' not in login_items:
+    # command from http://hints.macworld.com/article.php?story=20111226075701552
+    command = """osascript -e 'tell application "System Events" to make login item at end with properties {path:"%s", hidden:false}'""" % app_path
+    install_result = subprocess.check_output(command, shell=True)
+    print install_result
+
+
+iTunes = SBApplication.applicationWithBundleIdentifier_("com.apple.iTunes")
+
+# format:
+# TIMESTAMP, COMPLETE (Y/N), ELAPSED, ARTIST, ALBUM, TRACK
+# COMPLETE is Y iff ELAPSED > 50% of the song's duration
+
+last_artist = None
+last_album = None
+last_track = None
+last_position = None
+last_duration = None
+
+log_path = os.path.join(os.environ['HOME'], '.iTunes_history')
+with open(log_path, 'a') as fp:
+    while True:
+        t = iTunes.currentTrack()
+        artist, album, track, duration = t.artist(), t.album(), t.name(), t.duration()
+
+        if artist != last_artist or album != last_album or track != last_track:
+            # track changed
+            if last_artist != None and last_album != None:
+                cols = [int(time.time()), 'Y' if last_position > (last_duration / 2.0) else 'N', last_position,
+                    last_artist, last_album, last_track]
+
+                line = u'\t'.join(map(unicode, cols))
+                fp.write('%s\n' % line.encode('utf-8'))
+                fp.flush()
+            # else: it was just initializing
+
+            last_artist, last_album, last_track, last_duration = artist, album, track, duration
+
+        last_position = iTunes.playerPosition()
+        time.sleep(5)
