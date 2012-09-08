@@ -2,8 +2,9 @@
 import os
 import subprocess
 import re
-from ScriptingBridge import SBApplication
 import time
+from ScriptingBridge import SBApplication
+iTunes = SBApplication.applicationWithBundleIdentifier_("com.apple.iTunes")
 
 # first, install if needed:
 app_path = re.search('^.+iTunesHistory.app', os.path.abspath(__file__)).group(0)
@@ -15,36 +16,48 @@ if 'iTunesHistory' not in login_items:
     print install_result
 
 
-iTunes = SBApplication.applicationWithBundleIdentifier_("com.apple.iTunes")
-
 # format:
 # TIMESTAMP, COMPLETE (Y/N), ELAPSED, ARTIST, ALBUM, TRACK
 # COMPLETE is Y iff ELAPSED > 50% of the song's duration
 
-last_artist = None
-last_album = None
-last_track = None
-last_position = None
-last_duration = None
+class PlayState(object):
+    def __init__(self, track, position):
+        self.artist = track.artist()
+        self.album = track.album()
+        self.track = track.name()
+        self.duration = track.duration()
 
+        self.position = position
+
+    def __eq__(self, other):
+        return self and other and \
+            self.artist == other.artist and self.album == other.album and self.track == other.track
+
+    def __ne__(self, other):
+        return not self == other
+
+def update(fp, last_state, new_state):
+    if last_state and last_state != new_state:
+        # track changed
+        cols = [int(time.time()),
+            'Y' if last_state.position > (last_state.duration / 2.0) else 'N', last_state.position,
+            last_state.artist, last_state.album, last_state.track]
+
+        line = u'\t'.join(map(unicode, cols))
+        fp.write('%s\n' % line.encode('utf-8'))
+        fp.flush()
+    return new_state
+
+last_state = None
+new_state = None
 log_path = os.path.join(os.environ['HOME'], '.iTunes_history')
 with open(log_path, 'a') as fp:
     while True:
-        t = iTunes.currentTrack()
-        artist, album, track, duration = t.artist(), t.album(), t.name(), t.duration()
+        if iTunes.isRunning():
+            new_state = PlayState(iTunes.currentTrack(), iTunes.playerPosition())
+        else:
+            new_state = None
 
-        if artist != last_artist or album != last_album or track != last_track:
-            # track changed
-            if last_artist != None and last_album != None:
-                cols = [int(time.time()), 'Y' if last_position > (last_duration / 2.0) else 'N', last_position,
-                    last_artist, last_album, last_track]
+        last_state = update(fp, last_state, new_state)
 
-                line = u'\t'.join(map(unicode, cols))
-                fp.write('%s\n' % line.encode('utf-8'))
-                fp.flush()
-            # else: it was just initializing
-
-            last_artist, last_album, last_track, last_duration = artist, album, track, duration
-
-        last_position = iTunes.playerPosition()
         time.sleep(5)
