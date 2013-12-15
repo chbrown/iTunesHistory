@@ -16,9 +16,20 @@ By adding the key-val pair:
 Which prevents that app from ever having a dock icon.
 Who wants to know that python is running? I know I don't.
 
+
+## ScriptingBridge headers
+
+You can recreate the `iTunes.h` file with the following command:
+
+    sdef /Applications/iTunes.app | sdp -fh --basename iTunes
+
+Thanks to [http://shapejam.com/blog/procrastinating-with-objective-c/](http://shapejam.com/blog/procrastinating-with-objective-c/) for the command.
+
+
 ## Output
 
 Tab separated output is put in: `~/.iTunes_history`
+
 
 ## Usage
 
@@ -27,6 +38,7 @@ installed there. If you run it, you always run it.
 
 To uninstall, go to System Preferences -> Users & Groups -> Login Items
   -> select "iTunesHistory" and click "-".
+
 
 ## License
 
