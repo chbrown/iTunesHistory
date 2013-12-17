@@ -17,7 +17,14 @@ Which prevents that app from ever having a dock icon.
 Who wants to know that python is running? I know I don't.
 
 
-## ScriptingBridge headers
+## Objective-C implementation
+
+A bit memory-leaky at the moment. Resources to use when I get back to it:
+
+* http://mobileorchard.com/find-iphone-memory-leaks-a-leaks-tool-tutorial/
+* http://clang-analyzer.llvm.org/
+
+### ScriptingBridge headers
 
 You can recreate the `iTunes.h` file with the following command:
 
