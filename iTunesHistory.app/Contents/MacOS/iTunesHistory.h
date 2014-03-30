@@ -25,6 +25,6 @@
 @property(strong) iTunesApplication *iTunes;
 @property(strong) NSString *filepath;
 @property(strong) NSFileHandle *file;
-@property(strong) PlayState *currentState;
+@property(strong) PlayState *previousState;
 
 @end

@@ -1,10 +1,12 @@
 #import <Foundation/Foundation.h>
+// #import <ApplicationServices/ApplicationServices.h>
 #import <ScriptingBridge/ScriptingBridge.h>
 #import "iTunes.h"
 #import "iTunesHistory.h"
 
 // Compile like:
 // clang iTunesHistory.m -o iTunesHistory -Wall -fobjc-arc -framework Foundation -framework AppKit
+// call like: iTunesHistory -file ~/.iTunes_history
 
 @implementation PlayState
 
@@ -39,7 +41,7 @@
 @synthesize iTunes;
 @synthesize filepath;
 @synthesize file;
-@synthesize currentState;
+@synthesize previousState;
 
 - (id)initWithiTunes:(iTunesApplication *)iTunes_ andFilepath:(NSString *)filepath_ {
   self = [super init];
@@ -61,41 +63,35 @@
     // but I can't open it in "append" mode so I have to seek to the end manually
     [file seekToEndOfFile];
     // NSLog(@"Opened file: %@ -> %@", filepath, file);
+    previousState = [[PlayState alloc] initWithTrack:nil andPosition:0.0];
   }
   return self;
 }
 
 - (void)poll:(NSTimer *)timer {
-
   if (iTunes.isRunning) {
     // [iTunesTrack get] returns a copy, rather than whatever the current track is.
-    PlayState *newState = [[PlayState alloc] initWithTrack:[iTunes.currentTrack get] andPosition:iTunes.playerPosition];
-    // NSLog(@"iTunes is running (%@)", newState);
-    if (![currentState isEqualToPlayState:newState] && currentState != nil && newState != nil) {
+    iTunesTrack *currentTrack = [iTunes.currentTrack get];
+    PlayState *newState = [[PlayState alloc] initWithTrack:currentTrack andPosition:iTunes.playerPosition];
+    NSLog(@"iTunes is running: %d, %d, %@", previousState.track != nil, newState.track != nil, currentTrack);
+    if (previousState.track != nil && newState.track != nil && ![previousState isEqualToPlayState:newState]) {
       NSTimeInterval epoch = [[NSDate date] timeIntervalSince1970];
 
-      if (currentState != nil) {
-        // NSLog(@"Comparing %f > %f", currentState.position, currentState.track.duration / 2.0);
-        NSString *complete = currentState.position > (currentState.track.duration / 2.0) ? @"Y" : @"N";
+      NSString *complete = previousState.position > (previousState.track.duration / 2.0) ? @"Y" : @"N";
 
-        // format:
-        // TIMESTAMP, COMPLETE (Y/N), ELAPSED, ARTIST, ALBUM, TRACK
-        // COMPLETE is Y iff ELAPSED > 50% of the song's duration
-        // timestamp, complete, elapsed, artist, album, track
-        NSString *historyLine = [NSString stringWithFormat:@"%d\t%@\t%f\t%@\t%@\t%@\n", (int)epoch, complete,
-          currentState.position, currentState.track.artist, currentState.track.album, currentState.track.name];
-        NSLog(@"> %@", historyLine);
-        [file writeData:[historyLine dataUsingEncoding:NSUTF8StringEncoding]];
-
-      }
-      else {
-        // NSLog(@"currentState is nil");
-      }
+      // format:
+      // TIMESTAMP, COMPLETE (Y/N), ELAPSED, ARTIST, ALBUM, TRACK
+      // values:
+      // * COMPLETE is Y iff ELAPSED > 50% of the song's duration
+      NSString *historyLine = [NSString stringWithFormat:@"%d\t%@\t%f\t%@\t%@\t%@\n", (int)epoch, complete,
+        previousState.position, previousState.track.artist, previousState.track.album, previousState.track.name];
+      NSLog(@"> %@", historyLine);
+      [file writeData:[historyLine dataUsingEncoding:NSUTF8StringEncoding]];
     }
     else {
-      // NSLog(@"currentState == newState");
+      // NSLog(@"previousState == newState");
     }
-    currentState = newState;
+    previousState = newState;
   }
   else {
     NSLog(@"iTunes is not running");
@@ -105,18 +101,24 @@
 @end
 
 
-int main(int argc, const char * argv[]) {
+int main(int argc, const char *argv[]) {
   @autoreleasepool {
     iTunesApplication *iTunes = [SBApplication applicationWithBundleIdentifier:@"com.apple.iTunes"];
-    // XXX: DEBUG: @"~/objc.iTunes_history" should be @"~/.iTunes_history"
-    HistoryUpdater *updater = [[HistoryUpdater alloc] initWithiTunes:iTunes andFilepath:@"~/objc.iTunes_history"];
+    NSUserDefaults *args = [NSUserDefaults standardUserDefaults];
+    NSString *history_filepath = [args stringForKey:@"file"];
+    if (!history_filepath) {
+      // XXX: DEBUG: @"~/objc.iTunes_history" should be @"~/.iTunes_history"
+      history_filepath = @"~/objc.iTunes_history";
+    }
+    NSLog(@"Writing history to file: %@", history_filepath);
+    HistoryUpdater *updater = [[HistoryUpdater alloc] initWithiTunes:iTunes andFilepath:history_filepath];
 
     // start
     NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:2.0
       target:updater selector:@selector(poll:)
       userInfo:nil repeats:YES];
 
-    // wait
+    // loop and wait
     NSRunLoop *runLoop = [NSRunLoop mainRunLoop];
     [runLoop addTimer:timer forMode:NSDefaultRunLoopMode];
     [runLoop run];
