@@ -2,17 +2,18 @@
 #import "iTunes.h"
 
 
-@interface PlayState : NSObject
+@interface TrackState : NSObject
 
-- (id)initWithTrack:(iTunesTrack *)track_ andPosition:(double)position_;
-- (BOOL)isEqualToPlayState:(PlayState *)otherState;
+- (id)initFromTrack:(iTunesTrack *)track_ andPosition:(double)position_;
+- (BOOL)equalTo:(TrackState *)other;
 
-@property(strong) iTunesTrack *track;
+// we have to store the artist, album, track as native values
+// because when iTunes closes it unref's all of them and we're left with a bunch of nils
+@property(strong) NSString *artist;
+@property(strong) NSString *album;
+@property(strong) NSString *name;
+@property double duration;
 @property double position;
-// @property(strong) NSString *artist;
-// @property(strong) NSString *album;
-// @property(strong) NSString *track;
-// @property double duration;
 
 @end
 
@@ -21,10 +22,10 @@
 
 - (id)initWithiTunes:(iTunesApplication *)iTunes_ andFilepath:(NSString *)filepath_;
 - (void)poll:(NSTimer *)timer;
+- (void)write:(NSString *)line;
 
 @property(strong) iTunesApplication *iTunes;
-@property(strong) NSString *filepath;
 @property(strong) NSFileHandle *file;
-@property(strong) PlayState *previousState;
+@property(strong) TrackState *previousTrackState;
 
 @end

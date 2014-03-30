@@ -8,30 +8,44 @@
 // clang iTunesHistory.m -o iTunesHistory -Wall -fobjc-arc -framework Foundation -framework AppKit
 // call like: iTunesHistory -file ~/.iTunes_history
 
-@implementation PlayState
+@implementation TrackState
 
-@synthesize track;
+@synthesize artist;
+@synthesize album;
+@synthesize name;
+@synthesize duration;
 @synthesize position;
 
-- (id)initWithTrack:(iTunesTrack *)track_ andPosition:(double)position_ {
+- (id)initFromTrack:(iTunesTrack *)track_ andPosition:(double)position_ {
   self = [super init];
   if (self) {
-    track = track_;
+    artist = track_.artist;
+    album = track_.album;
+    name = track_.name;
+    duration = track_.duration;
     position = position_;
   }
   return self;
 }
 
-- (BOOL)isEqualToPlayState:(PlayState *)otherState {
-  return [track.artist isEqualToString:otherState.track.artist] &&
-    [track.album isEqualToString:otherState.track.album] &&
-    [track.name isEqualToString:otherState.track.name];
+// - (BOOL)isNil {
+//   return !(self.artist || self.album || self.name):
+// }
+
+- (BOOL)equalTo:(TrackState *)other {
+  // returns TRUE if both tracks are nil, or if both tracks have identical artists, albums, and names
+  // nil == nil is TRUE, right?
+  return self == other || (
+    [self.artist isEqualToString:other.artist] &&
+    [self.album isEqualToString:other.album] &&
+    [self.name isEqualToString:other.name]
+  );
 }
 
-- (NSString *)description {
-  return [NSString stringWithFormat:@"PlayState: artist=%@, album=%@, name=%@, position=%f",
-    track.artist, track.album, track.name, position];
-}
+// - (NSString *)description {
+//   return [NSString stringWithFormat:@"PlayState: artist=%@, album=%@, name=%@, position=%f",
+//     track.artist, track.album, track.name, position];
+// }
 
 @end
 
@@ -39,17 +53,14 @@
 @implementation HistoryUpdater
 
 @synthesize iTunes;
-@synthesize filepath;
 @synthesize file;
-@synthesize previousState;
+@synthesize previousTrackState;
 
-- (id)initWithiTunes:(iTunesApplication *)iTunes_ andFilepath:(NSString *)filepath_ {
+- (id)initWithiTunes:(iTunesApplication *)iTunes_ andFilepath:(NSString *)filepath {
   self = [super init];
   if (self) {
     iTunes = iTunes_;
-    // expand `~` into $USER if necessary
-    filepath = [filepath_ stringByExpandingTildeInPath];
-    // I have to create a file before I can write to it--- awesome!
+    // I have to create a file before I can open it--- awesome!
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if (![fileManager fileExistsAtPath:filepath]) {
       // create it if it doesn't exist
@@ -62,40 +73,44 @@
     file = [NSFileHandle fileHandleForWritingAtPath:filepath];
     // but I can't open it in "append" mode so I have to seek to the end manually
     [file seekToEndOfFile];
-    // NSLog(@"Opened file: %@ -> %@", filepath, file);
-    previousState = [[PlayState alloc] initWithTrack:nil andPosition:0.0];
+    previousTrackState = nil;
   }
   return self;
 }
 
 - (void)poll:(NSTimer *)timer {
-  if (iTunes.isRunning) {
+  TrackState *currentTrackState = nil;
+  if (iTunes.isRunning && iTunes.currentTrack && iTunes.currentTrack.name) {
     // [iTunesTrack get] returns a copy, rather than whatever the current track is.
-    iTunesTrack *currentTrack = [iTunes.currentTrack get];
-    PlayState *newState = [[PlayState alloc] initWithTrack:currentTrack andPosition:iTunes.playerPosition];
-    NSLog(@"iTunes is running: %d, %d, %@", previousState.track != nil, newState.track != nil, currentTrack);
-    if (previousState.track != nil && newState.track != nil && ![previousState isEqualToPlayState:newState]) {
-      NSTimeInterval epoch = [[NSDate date] timeIntervalSince1970];
+    currentTrackState = [[TrackState alloc] initFromTrack:iTunes.currentTrack andPosition:iTunes.playerPosition];
+    // NSLog(@"iTunes is running: %@, %f", iTunes.currentTrack.artist, iTunes.playerPosition);
+  }
+  // else {
+  //   NSLog(@"iTunes is not running");
+  // }
 
-      NSString *complete = previousState.position > (previousState.track.duration / 2.0) ? @"Y" : @"N";
-
+  if (previousTrackState) {
+    // just ignore cases where the previousTrackState was nil
+    if (![previousTrackState equalTo:currentTrackState]) {
       // format:
       // TIMESTAMP, COMPLETE (Y/N), ELAPSED, ARTIST, ALBUM, TRACK
       // values:
       // * COMPLETE is Y iff ELAPSED > 50% of the song's duration
-      NSString *historyLine = [NSString stringWithFormat:@"%d\t%@\t%f\t%@\t%@\t%@\n", (int)epoch, complete,
-        previousState.position, previousState.track.artist, previousState.track.album, previousState.track.name];
-      NSLog(@"> %@", historyLine);
-      [file writeData:[historyLine dataUsingEncoding:NSUTF8StringEncoding]];
+      NSTimeInterval epoch = [[NSDate date] timeIntervalSince1970];
+      NSString *complete = previousTrackState.position > (previousTrackState.duration / 2.0) ? @"Y" : @"N";
+      NSString *historyLine = [NSString stringWithFormat:@"%d\t%@\t%.3f\t%@\t%@\t%@\n",
+        (int)epoch, complete, previousTrackState.position, previousTrackState.artist, previousTrackState.album, previousTrackState.name];
+      [self write:historyLine];
     }
-    else {
-      // NSLog(@"previousState == newState");
-    }
-    previousState = newState;
   }
-  else {
-    NSLog(@"iTunes is not running");
-  }
+
+  // how to release the previousTrackState before overwriting it?
+  previousTrackState = currentTrackState;
+}
+
+- (void)write:(NSString *)line {
+  NSLog(@"> %@", line);
+  [file writeData:[line dataUsingEncoding:NSUTF8StringEncoding]];
 }
 
 @end
@@ -105,11 +120,12 @@ int main(int argc, const char *argv[]) {
   @autoreleasepool {
     iTunesApplication *iTunes = [SBApplication applicationWithBundleIdentifier:@"com.apple.iTunes"];
     NSUserDefaults *args = [NSUserDefaults standardUserDefaults];
-    NSString *history_filepath = [args stringForKey:@"file"];
-    if (!history_filepath) {
-      // XXX: DEBUG: @"~/objc.iTunes_history" should be @"~/.iTunes_history"
-      history_filepath = @"~/objc.iTunes_history";
+    NSString *history_file = [args stringForKey:@"file"];
+    if (!history_file) {
+      history_file = @"~/.iTunes_history";
     }
+    // expand `~` into $USER if necessary
+    NSString *history_filepath = [history_file stringByExpandingTildeInPath];
     NSLog(@"Writing history to file: %@", history_filepath);
     HistoryUpdater *updater = [[HistoryUpdater alloc] initWithiTunes:iTunes andFilepath:history_filepath];
 
