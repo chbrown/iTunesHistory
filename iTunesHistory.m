@@ -1,5 +1,4 @@
 #import <Foundation/Foundation.h>
-// #import <ApplicationServices/ApplicationServices.h>
 #import <ScriptingBridge/ScriptingBridge.h>
 #import "iTunes.h"
 #import "iTunesHistory.h"
@@ -28,10 +27,6 @@
   return self;
 }
 
-// - (BOOL)isNil {
-//   return !(self.artist || self.album || self.name):
-// }
-
 - (BOOL)equalTo:(TrackState *)other {
   // returns TRUE if both tracks are nil, or if both tracks have identical artists, albums, and names
   // nil == nil is TRUE, right?
@@ -42,11 +37,6 @@
   );
 }
 
-// - (NSString *)description {
-//   return [NSString stringWithFormat:@"PlayState: artist=%@, album=%@, name=%@, position=%f",
-//     track.artist, track.album, track.name, position];
-// }
-
 @end
 
 
@@ -56,7 +46,7 @@
 @synthesize file;
 @synthesize previousTrackState;
 
-- (id)initWithiTunes:(iTunesApplication *)iTunes_ andFilepath:(NSString *)filepath {
+- (id)initWithApplication:(iTunesApplication *)iTunes_ andFilepath:(NSString *)filepath {
   self = [super init];
   if (self) {
     iTunes = iTunes_;
@@ -65,7 +55,10 @@
     if (![fileManager fileExistsAtPath:filepath]) {
       // create it if it doesn't exist
       bool create_success = [fileManager createFileAtPath:filepath contents:nil attributes:nil];
-      if (!create_success) {
+      if (create_success) {
+        NSLog(@"Created file: %@", filepath);
+      }
+      else {
         NSLog(@"Could not create file: %@", filepath);
       }
     }
@@ -83,11 +76,7 @@
   if (iTunes.isRunning && iTunes.currentTrack && iTunes.currentTrack.name) {
     // [iTunesTrack get] returns a copy, rather than whatever the current track is.
     currentTrackState = [[TrackState alloc] initFromTrack:iTunes.currentTrack andPosition:iTunes.playerPosition];
-    // NSLog(@"iTunes is running: %@, %f", iTunes.currentTrack.artist, iTunes.playerPosition);
   }
-  // else {
-  //   NSLog(@"iTunes is not running");
-  // }
 
   if (previousTrackState) {
     // just ignore cases where the previousTrackState was nil
@@ -127,7 +116,7 @@ int main(int argc, const char *argv[]) {
     // expand `~` into $USER if necessary
     NSString *history_filepath = [history_file stringByExpandingTildeInPath];
     NSLog(@"Writing history to file: %@", history_filepath);
-    HistoryUpdater *updater = [[HistoryUpdater alloc] initWithiTunes:iTunes andFilepath:history_filepath];
+    HistoryUpdater *updater = [[HistoryUpdater alloc] initWithApplication:iTunes andFilepath:history_filepath];
 
     // start
     NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:2.0

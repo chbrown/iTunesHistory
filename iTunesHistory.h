@@ -20,7 +20,7 @@
 
 @interface HistoryUpdater : NSObject
 
-- (id)initWithiTunes:(iTunesApplication *)iTunes_ andFilepath:(NSString *)filepath_;
+- (id)initWithApplication:(iTunesApplication *)iTunes_ andFilepath:(NSString *)filepath_;
 - (void)poll:(NSTimer *)timer;
 - (void)write:(NSString *)line;
 

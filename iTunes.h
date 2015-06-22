@@ -1,7 +1,10 @@
 /*
  * iTunes.h
  *
- * This file was generated with the command: `sdef /Applications/iTunes.app | sdp -fh --basename iTunes`
+ * This file was generated with the command: `sdef /Applications/iTunes.app | sdp -fh --basename iTunes`,
+ * which creates a file called `iTunes.h` in the current directory.
+ *
+ * Thanks to http://shapejam.com/blog/procrastinating-with-objective-c/ for the command.
  */
 
 #import <AppKit/AppKit.h>
