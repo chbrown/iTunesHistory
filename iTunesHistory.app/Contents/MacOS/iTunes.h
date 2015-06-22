@@ -171,13 +171,14 @@ typedef enum iTunesEAPD iTunesEAPD;
 @property BOOL fullScreen;  // are visuals displayed using the entire screen?
 @property (copy, readonly) NSString *name;  // the name of the application
 @property BOOL mute;  // has the sound output been muted?
-@property double playerPosition;  // the player’s position within the currently playing track in seconds
+@property double playerPosition;  // the player’s position within the currently playing track in seconds.
 @property (readonly) iTunesEPlS playerState;  // is iTunes stopped, paused, or playing?
 @property (copy, readonly) SBObject *selection;  // the selection visible to the user
 @property NSInteger soundVolume;  // the sound output volume (0 = minimum, 100 = maximum)
 @property (copy, readonly) NSString *version;  // the version of iTunes
 @property BOOL visualsEnabled;  // are visuals currently being displayed?
 @property iTunesEVSz visualSize;  // the size of the displayed visual
+@property (copy, readonly) NSString *iAdIdentifier;  // the iAd identifier
 
 - (void) printPrintDialog:(BOOL)printDialog withProperties:(iTunesPrintSettings *)withProperties kind:(iTunesEKnd)kind theme:(NSString *)theme;  // Print the specified object(s)
 - (void) run;  // run iTunes
@@ -290,7 +291,7 @@ typedef enum iTunesEAPD iTunesEAPD;
 @property (copy) NSString *name;  // the name of the playlist
 @property (copy, readonly) iTunesPlaylist *parent;  // folder which contains this playlist (if any)
 @property BOOL shuffle;  // play the songs in this playlist in random order?
-@property (readonly) long long size;  // the total size of all songs (in bytes)
+@property (readonly) NSInteger size;  // the total size of all songs (in bytes)
 @property iTunesERpt songRepeat;  // playback repeat mode
 @property (readonly) iTunesESpK specialKind;  // special playlist kind
 @property (copy, readonly) NSString *time;  // the length of all songs in MM:SS format
