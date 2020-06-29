@@ -7,7 +7,7 @@ the search next function in `htop`?
 
 ## Installation
 
-Running `make -B` will re-build the main binary, `iTunesHistory`. The committed binary was built on Mac OS X Mavericks (10.9.5).
+Running `make -B` will re-build the main binary, `iTunesHistory`. The committed binary was built on macOS Mojave (10.14.6).
 
 Running `make install` will:
 
