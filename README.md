@@ -37,4 +37,5 @@ Tab separated output is put in: `~/.iTunes_history`. There is no header, but the
 
 ## License
 
-Copyright (c) 2012, 2015 Christopher Brown. [MIT Licensed](http://chbrown.github.io/licenses/MIT/#2012,2015).
+Copyright (c) 2012–2020 Christopher Brown.
+[MIT Licensed](https://chbrown.github.io/licenses/MIT/#2012-2020).
