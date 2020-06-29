@@ -1,6 +1,5 @@
-CFLAGS=-Wall -fobjc-arc -framework Foundation -framework AppKit -framework ScriptingBridge -O3
-
-all: iTunesHistory
+iTunesHistory: iTunesHistory.swift
+	xcrun -sdk macosx swiftc $< -O -o $@
 
 install: iTunesHistory
 	cp $< /usr/local/bin/
