@@ -1,5 +1,6 @@
 #!/usr/bin/env swift
 import Foundation
+import ScriptingBridge
 
 /**
  Generic FileHandle wrapper with custom init and write implementations.
@@ -60,6 +61,8 @@ class FileAppender {
     @objc optional var currentTrack: iTunesTrack { get } // the current targeted track
     @objc optional var playerPosition: Double { get } // the player’s position within the currently playing track in seconds.
 }
+
+extension SBApplication: iTunesApplication {}
 
 @objc public protocol iTunesItem: SBObjectProtocol {
     @objc optional var name: String { get } // the name of the item
