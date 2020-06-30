@@ -73,3 +73,72 @@ extension SBApplication: iTunesApplication {}
     @objc optional var artist: String { get } // the artist/source of the track
     @objc optional var duration: Double { get } // the length of the track in seconds
 }
+
+class TrackState: NSObject {
+    var artist: String?
+    var album: String?
+    var name: String?
+    var duration: Double
+    var position: Double
+
+    init(fromTrack: iTunesTrack?, withPosition: Double) {
+        artist = fromTrack?.artist
+        album = fromTrack?.album
+        name = fromTrack?.name
+        duration = fromTrack?.duration ?? 0.0
+        position = withPosition
+    }
+
+    /**
+     - returns: true if `object`is a TrackState and both have identical artists, albums, and names
+     */
+    override func isEqual(_ object: Any?) -> Bool {
+        if let other = object as? TrackState {
+            return (artist == other.artist) && (album == other.album) && (name == other.name)
+        }
+        return false
+    }
+}
+
+func main() {
+    guard let iTunes: iTunesApplication = SBApplication(bundleIdentifier: "com.apple.iTunes") else {
+        print("Could not load iTunes via ScriptingBridge; exiting!")
+        exit(1)
+    }
+
+    let historyFilepath = UserDefaults.standard.string(forKey: "file") ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".iTunes_history").path
+    let historyAppender = FileAppender(historyFilepath)
+    print("Writing history to file: \(historyFilepath)")
+
+    var previous: TrackState?
+    let timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+        var current: TrackState?
+        if iTunes.isRunning, let currentTrack = iTunes.currentTrack, let currentPosition = iTunes.playerPosition {
+            current = TrackState(fromTrack: currentTrack, withPosition: currentPosition)
+        }
+
+        // ignore cases where the previous was nil or same as current
+        if let previous = previous, previous != current {
+            // format:
+            // TIMESTAMP, COMPLETE (Y/N), ELAPSED, ARTIST, ALBUM, TRACK
+            // values:
+            // * COMPLETE is Y iff ELAPSED > 50% of the song's duration
+            let epoch = Int(Date().timeIntervalSince1970)
+            let position = previous.position
+            let overHalf = position > (previous.duration / 2.0)
+            let complete = overHalf ? "Y" : "N"
+            if let artist = previous.artist, let album = previous.album, let name = previous.name {
+                let historyLine = String(format: "%d\t%@\t%.3f\t%@\t%@\t%@\n", epoch, complete, position, artist, album, name)
+                historyAppender.write(historyLine)
+            }
+        }
+
+        previous = current
+    }
+
+    let runLoop = RunLoop.main
+    runLoop.add(timer, forMode: .default)
+    runLoop.run()
+}
+
+main()
