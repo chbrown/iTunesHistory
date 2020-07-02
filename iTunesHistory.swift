@@ -81,11 +81,11 @@ class TrackState: NSObject {
     var duration: Double
     var position: Double
 
-    init(fromTrack: iTunesTrack?, withPosition: Double) {
-        artist = fromTrack?.artist
-        album = fromTrack?.album
-        name = fromTrack?.name
-        duration = fromTrack?.duration ?? 0.0
+    init(fromTrack: iTunesTrack, withPosition: Double) {
+        artist = fromTrack.artist
+        album = fromTrack.album
+        name = fromTrack.name
+        duration = fromTrack.duration ?? 0.0
         position = withPosition
     }
 
