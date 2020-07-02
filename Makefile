@@ -6,6 +6,10 @@ install: iTunesHistory
 	cp github.chbrown.iTunesHistory.plist ~/Library/LaunchAgents/
 	launchctl load ~/Library/LaunchAgents/github.chbrown.iTunesHistory.plist
 
+test:
+	swiftformat --lint *.swift
+	swiftlint lint *.swift
+
 clean:
 	rm -f iTunesHistory
 
