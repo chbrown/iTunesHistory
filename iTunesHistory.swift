@@ -74,29 +74,20 @@ extension SBApplication: iTunesApplication {}
     @objc optional var duration: Double { get } // the length of the track in seconds
 }
 
-class TrackState: NSObject {
-    var artist: String?
-    var album: String?
-    var name: String?
+struct Track: Equatable {
+    var artist: String
+    var album: String
+    var name: String
     var duration: Double
-    var position: Double
 
-    init(fromTrack: iTunesTrack, withPosition: Double) {
-        artist = fromTrack.artist
-        album = fromTrack.album
-        name = fromTrack.name
-        duration = fromTrack.duration ?? 0.0
-        position = withPosition
-    }
-
-    /**
-     - returns: true if `object`is a TrackState and both have identical artists, albums, and names
-     */
-    override func isEqual(_ object: Any?) -> Bool {
-        if let other = object as? TrackState {
-            return (artist == other.artist) && (album == other.album) && (name == other.name)
+    init?(from: iTunesTrack?) {
+        guard let artist = from?.artist, let album = from?.album, let name = from?.name, let duration = from?.duration else {
+            return nil
         }
-        return false
+        self.artist = artist
+        self.album = album
+        self.name = name
+        self.duration = duration
     }
 }
 
@@ -105,15 +96,11 @@ class TrackState: NSObject {
        TIMESTAMP, COMPLETE (Y/N), ELAPSED, ARTIST, ALBUM, TRACK
    where COMPLETE is "Y" iff ELAPSED > 50% of the song's duration
  */
-func formatHistoryLine(_ artist: String,
-                       _ album: String,
-                       _ name: String,
-                       _ duration: Double,
-                       position: Double) -> String {
+func formatHistoryLine(track: Track, position: Double) -> String {
     let epoch = Int(Date().timeIntervalSince1970)
-    let overHalf = position > (duration / 2.0)
+    let overHalf = position > (track.duration / 2.0)
     let complete = overHalf ? "Y" : "N"
-    return String(format: "%d\t%@\t%.3f\t%@\t%@\t%@\n", epoch, complete, position, artist, album, name)
+    return String(format: "%d\t%@\t%.3f\t%@\t%@\t%@\n", epoch, complete, position, track.artist, track.album, track.name)
 }
 
 func main() {
@@ -126,22 +113,24 @@ func main() {
     let historyAppender = FileAppender(historyFilepath)
     print("Writing history to file: \(historyFilepath)")
 
-    var previous: TrackState?
+    var previous: Track?
+    var previousPosition: Double = 0.0
     let timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-        var current: TrackState?
-        if iTunes.isRunning, let currentTrack = iTunes.currentTrack, let currentPosition = iTunes.playerPosition {
-            current = TrackState(fromTrack: currentTrack, withPosition: currentPosition)
+        var current: Track?
+        var currentPosition: Double = 0.0
+        if iTunes.isRunning {
+            current = Track(from: iTunes.currentTrack)
+            currentPosition = iTunes.playerPosition ?? 0.0
         }
 
-        // ignore cases where the previous was nil or same as current
-        if let previous = previous, previous != current {
-            if let artist = previous.artist, let album = previous.album, let name = previous.name {
-                let historyLine = formatHistoryLine(artist, album, name, previous.duration, position: previous.position)
-                historyAppender.write(historyLine)
-            }
+        // if current is different from previous (including because current is nil and previous is not), log previous
+        if previous != current, let track = previous {
+            let historyLine = formatHistoryLine(track: track, position: previousPosition)
+            historyAppender.write(historyLine)
         }
 
         previous = current
+        previousPosition = currentPosition
     }
 
     let runLoop = RunLoop.main
