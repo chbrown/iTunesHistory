@@ -100,6 +100,22 @@ class TrackState: NSObject {
     }
 }
 
+/**
+ - returns: formatted string with the following values separated by tabs, and ending with a newline:
+       TIMESTAMP, COMPLETE (Y/N), ELAPSED, ARTIST, ALBUM, TRACK
+   where COMPLETE is "Y" iff ELAPSED > 50% of the song's duration
+ */
+func formatHistoryLine(_ artist: String,
+                       _ album: String,
+                       _ name: String,
+                       _ duration: Double,
+                       position: Double) -> String {
+    let epoch = Int(Date().timeIntervalSince1970)
+    let overHalf = position > (duration / 2.0)
+    let complete = overHalf ? "Y" : "N"
+    return String(format: "%d\t%@\t%.3f\t%@\t%@\t%@\n", epoch, complete, position, artist, album, name)
+}
+
 func main() {
     guard let iTunes: iTunesApplication = SBApplication(bundleIdentifier: "com.apple.iTunes") else {
         print("Could not load iTunes via ScriptingBridge; exiting!")
@@ -119,16 +135,8 @@ func main() {
 
         // ignore cases where the previous was nil or same as current
         if let previous = previous, previous != current {
-            // format:
-            // TIMESTAMP, COMPLETE (Y/N), ELAPSED, ARTIST, ALBUM, TRACK
-            // values:
-            // * COMPLETE is Y iff ELAPSED > 50% of the song's duration
-            let epoch = Int(Date().timeIntervalSince1970)
-            let position = previous.position
-            let overHalf = position > (previous.duration / 2.0)
-            let complete = overHalf ? "Y" : "N"
             if let artist = previous.artist, let album = previous.album, let name = previous.name {
-                let historyLine = String(format: "%d\t%@\t%.3f\t%@\t%@\t%@\n", epoch, complete, position, artist, album, name)
+                let historyLine = formatHistoryLine(artist, album, name, previous.duration, position: previous.position)
                 historyAppender.write(historyLine)
             }
         }
