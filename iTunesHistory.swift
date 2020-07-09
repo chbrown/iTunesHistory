@@ -115,7 +115,7 @@ func main() {
 
     var previous: Track?
     var previousPosition: Double = 0.0
-    let timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+    let timer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
         var current: Track?
         var currentPosition: Double = 0.0
         if iTunes.isRunning {
